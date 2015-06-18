@@ -1,46 +1,26 @@
 package kademlia
 
 import (
-	"container/list"
+	"crypto/sha1"
 	"encoding/hex"
-	"math/rand"
+	"log"
 	"strconv"
 	"strings"
 )
 
 const (
-	K        int = 20
 	A        int = 3
 	idLength int = 160
 )
 
-type Triplet struct {
-	id   NodeId
-	ip   string
-	port int
-}
-
-type Bucket struct {
-	nodes *list.List
-}
-
 type NodeId [idLength / 8]byte
-
-type Node struct {
-	*Triplet
-	buckets [idLength]Bucket
-}
 
 func (id NodeId) String() string {
 	return hex.EncodeToString(id[:])
 }
 
-func NewNodeId() (id NodeId) {
-	for i := 0; i < idLength/8; i++ {
-		id[i] = uint8(rand.Intn(256))
-	}
-
-	return
+func NewNodeId(address string) (id NodeId) {
+	return sha1.Sum([]byte(address))
 }
 
 func Xor(current NodeId, target NodeId) (diff NodeId) {
@@ -51,8 +31,13 @@ func Xor(current NodeId, target NodeId) (diff NodeId) {
 	return
 }
 
+type Node struct {
+	*Triplet
+	buckets [idLength]Bucket
+}
+
 func (node Node) BucketIndex(id NodeId) int {
-	diff := Xor(node.id, id)
+	diff := Xor(node.Id, id)
 
 	for byteIndex, b := range diff {
 		if b != 0 {
@@ -72,9 +57,8 @@ func (node Node) BucketIndex(id NodeId) int {
 }
 
 func (node *Node) AddToBucket(triplet Triplet) bool {
-	index := node.BucketIndex(triplet.id)
-	bucket := node.buckets[index]
-	bucket.nodes.PushBack(triplet)
+	bucket := node.ClosestBucket(triplet.Id)
+	bucket.Update(triplet)
 
 	return true
 }
@@ -88,14 +72,31 @@ func (node *Node) Update(t *Triplet) {
 	node.AddToBucket(*t)
 }
 
-func NewNode(ip string, port int) (node Node) {
+func (node Node) ClosestBucket(target NodeId) Bucket {
+	index := node.BucketIndex(target)
+	return node.buckets[index]
+}
+
+func (node *Node) ClosestNodes(target NodeId) []Triplet {
+	bucket := node.ClosestBucket(target)
+	log.Println("Bucket", bucket)
+
+	return []Triplet{}
+}
+
+func (node *Node) String() string {
+	return node.Triplet.String()
+}
+
+func NewNode(ip string, port string) (node Node) {
 	var buckets [idLength]Bucket
 
 	for i := 0; i < idLength; i++ {
-		buckets[i] = Bucket{nodes: list.New()}
+		buckets[i] = NewBucket()
 	}
 
-	triplet := Triplet{id: NewNodeId(), ip: ip, port: port}
+	triplet := Triplet{Ip: ip, Port: port}
+	triplet.Id = NewNodeId(triplet.Address())
 	node = Node{&triplet, buckets}
 
 	return

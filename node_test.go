@@ -6,7 +6,7 @@ import (
 )
 
 func TestNodeId(t *testing.T) {
-	id := NewNodeId()
+	id := NewNodeId("test")
 
 	if len(id) != 20 {
 		t.Error("Id should have 20 bytes", len(id))
@@ -43,15 +43,15 @@ func TestXor(t *testing.T) {
 }
 
 func TestBucketIndex(t *testing.T) {
-	n := NewNode("0.0.0.0", 3000)
-	id := NewNodeId()
+	n := NewNode("0.0.0.0", "3000")
+	id := NewNodeId("test")
 
-	if index := n.BucketIndex(n.id); index != idLength-1 {
+	if index := n.BucketIndex(n.Id); index != idLength-1 {
 		t.Error("BucketIndex should equal", idLength-1, "not", index)
 	}
 
 	id[0] = uint8(0)
-	n.id[0] = uint8(255)
+	n.Id[0] = uint8(255)
 
 	if index := n.BucketIndex(id); index != 0 {
 		t.Error("BucketIndex should equal", 0, "not", index)
@@ -62,10 +62,10 @@ func TestBucketIndex(t *testing.T) {
 	id[2] = uint8(5)
 	id[3] = uint8(9)
 
-	n.id[0] = uint8(5)
-	n.id[1] = uint8(5)
-	n.id[2] = uint8(5)
-	n.id[3] = uint8(7)
+	n.Id[0] = uint8(5)
+	n.Id[1] = uint8(5)
+	n.Id[2] = uint8(5)
+	n.Id[3] = uint8(7)
 
 	if index := n.BucketIndex(id); index != 28 {
 		t.Error("BucketIndex should equal", 28, "not", index)
@@ -73,38 +73,47 @@ func TestBucketIndex(t *testing.T) {
 }
 
 func TestJoin(t *testing.T) {
-	n1 := NewNode("0.0.0.0", 3000)
-	n2 := NewNode("0.0.0.0", 3001)
+	n1 := NewNode("0.0.0.0", "3000")
+	n2 := NewNode("0.0.0.0", "3001")
 
 	n1.Join(*n2.Triplet)
 
 	bucket := n1.buckets[idLength-1]
-	tail := bucket.nodes.Back().Value.(Triplet)
+	tail := bucket.Back().Value.(Triplet)
 
-	if tail.id != n1.id {
+	if tail.Id != n1.Id {
 		t.Error("Node's should add themselves to the final bucket")
 	}
 
-	index := n1.BucketIndex(n2.id)
+	index := n1.BucketIndex(n2.Id)
 	bucket = n1.buckets[index]
-	tail = bucket.nodes.Back().Value.(Triplet)
+	tail = bucket.Back().Value.(Triplet)
 
-	if tail.id != n2.id {
+	if tail.Id != n2.Id {
 		t.Error("The seed node should be added to the correct bucket", n1.buckets[index])
 	}
 }
 
-func TestUpdate(t *testing.T) {
-	n1 := NewNode("0.0.0.0", 3000)
-	n2 := NewNode("0.0.0.0", 3001)
+func TestNodeUpdate(t *testing.T) {
+	n1 := NewNode("0.0.0.0", "3000")
+	n2 := NewNode("0.0.0.0", "3001")
 
 	n1.Update(n2.Triplet)
 
-	index := n1.BucketIndex(n2.id)
+	index := n1.BucketIndex(n2.Id)
 	bucket := n1.buckets[index]
-	tail := bucket.nodes.Back().Value.(Triplet)
+	tail := bucket.Back().Value.(Triplet)
 
-	if tail.id != n2.id {
+	if tail.Id != n2.Id {
 		t.Error("Update should added new nodes to the correct bucket")
 	}
+}
+
+func TestClosestNodes(t *testing.T) {
+	n := NewNode("0.0.0.0", "3000")
+	target := NewNodeId("test")
+
+	closest := n.ClosestNodes(target)
+
+	t.Error("Closest nodes", closest)
 }
