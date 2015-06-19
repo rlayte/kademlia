@@ -3,7 +3,6 @@ package kademlia
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -17,6 +16,16 @@ type NodeId [idLength / 8]byte
 
 func (id NodeId) String() string {
 	return hex.EncodeToString(id[:])
+}
+
+func (id NodeId) LessThan(other NodeId) bool {
+	for i, b := range id {
+		if b != other[i] {
+			return b < other[i]
+		}
+	}
+
+	return false
 }
 
 func NewNodeId(address string) (id NodeId) {
@@ -77,11 +86,47 @@ func (node Node) ClosestBucket(target NodeId) Bucket {
 	return node.buckets[index]
 }
 
-func (node *Node) ClosestNodes(target NodeId) []Triplet {
-	bucket := node.ClosestBucket(target)
-	log.Println("Bucket", bucket)
+func (node Node) NextBucket(target NodeId) Bucket {
+	index := node.BucketIndex(target)
 
-	return []Triplet{}
+	if index >= idLength-1 {
+		return node.buckets[0]
+	} else {
+		return node.buckets[index+1]
+	}
+}
+
+func (node Node) PrevBucket(target NodeId) Bucket {
+	index := node.BucketIndex(target)
+
+	if index == 0 {
+		return node.buckets[idLength-1]
+	} else {
+		return node.buckets[index-1]
+	}
+}
+
+func (node *Node) ClosestNodes(target NodeId, quantity int) []Triplet {
+	bucket := node.ClosestBucket(target)
+	selected := []Triplet{}
+
+	for len(selected) < quantity {
+		count := 0
+
+		for bucket.Len() < A {
+			if count > idLength/2 {
+				break
+			}
+
+			bucket.PushBackList(node.NextBucket(target).List)
+			bucket.PushBackList(node.PrevBucket(target).List)
+			count++
+		}
+
+		selected = append(selected, bucket.RandomTriplets(A-len(selected))...)
+	}
+
+	return selected
 }
 
 func (node *Node) String() string {

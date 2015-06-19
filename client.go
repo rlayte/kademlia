@@ -5,14 +5,12 @@ import (
 	"net/rpc"
 )
 
-type RPC interface {
-	Call(method string, t Triplet) (Triplet, error)
-}
-
 type Client struct {
+	t *Triplet
+	*rpc.Client
 }
 
-func HTTPClient(t Triplet) (c *rpc.Client) {
+func HTTPClient(t *Triplet) (c *rpc.Client) {
 	log.Println("Connecting to:", t.Address())
 	c, err := rpc.DialHTTP("tcp", t.Address())
 
@@ -23,13 +21,6 @@ func HTTPClient(t Triplet) (c *rpc.Client) {
 	return
 }
 
-func (c Client) Call(method string, t Triplet) (Triplet, error) {
-	log.Println("Calling", method)
-	httpClient := HTTPClient(t)
-	var reply Triplet
-	err := httpClient.Call("Server."+method, t, &reply)
-
-	log.Println("Pong", reply)
-
-	return reply, err
+func NewClient(sender *Triplet, contact *Triplet) Client {
+	return Client{sender, HTTPClient(contact)}
 }

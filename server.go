@@ -6,29 +6,92 @@ type Server struct {
 	node Node
 }
 
-func nodeLookup(origin Node, target NodeId) Triplet {
-	nodes := origin.ClosestNodes(target)
-	log.Println("Nodes", nodes)
-	return Triplet{}
+type Request struct {
+	Sender *Triplet
 }
 
-func (s Server) Ping(node *Triplet, reply *Triplet) error {
-	log.Println("Ping recieved:", node, s)
+type FindRequest struct {
+	*Request
+	Target *Triplet
+}
 
-	reply.Id = s.node.Id
-	reply.Ip = s.node.Ip
-	reply.Port = s.node.Port
+type PingResponse struct {
+	*Triplet
+}
 
-	s.node.Update(node)
+type FindNodeResponse struct {
+	Triplets []Triplet
+}
+
+func addToShortlist(shortlist chan Triplet, items []Triplet) {
+	for _, triplet := range items {
+		shortlist <- triplet
+	}
+}
+
+func requestClosest(t Triplet, method string) []Triplet {
+	reply := FindNodeResponse{}
+	t.client.Call(method, &t, reply)
+
+	return reply.Triplets
+}
+
+func iterateShortlist(shortlist chan Triplet, target NodeId, method string) Triplet {
+	var closestNode Triplet
+	var closestDistance NodeId
+	done := make(chan Triplet, 1)
+	contacted := map[NodeId]bool{}
+
+	for triplet := range shortlist {
+		if len(contacted) > K {
+			close(shortlist)
+			done <- closestNode
+		}
+
+		if distance := Xor(target, triplet.Id); distance.LessThan(closestDistance) {
+			closestDistance = distance
+			closestNode = triplet
+		}
+
+		if _, ok := contacted[triplet.Id]; !ok {
+			contacted[triplet.Id] = true
+			addToShortlist(shortlist, requestClosest(triplet, method))
+		}
+	}
+
+	return <-done
+}
+
+func nodeLookup(origin Node, target NodeId, method string) Triplet {
+	shortlist := make(chan Triplet, A)
+	addToShortlist(shortlist, origin.ClosestNodes(target, A))
+	return iterateShortlist(shortlist, target, method)
+}
+
+func (s Server) Ping(request *Request, reply *PingResponse) error {
+	log.Println("Ping recieved:", request.Sender)
+
+	reply.Triplet = &Triplet{
+		Id:   s.node.Id,
+		Ip:   s.node.Ip,
+		Port: s.node.Port,
+	}
+
+	s.node.Update(request.Sender)
 
 	return nil
 }
 
-func Join(s Server, ip string, port string) {
-	log.Println("Joining network:", s)
-	seed := NewTriplet("0.0.0.0", "3000")
-	s.node.Join(seed)
-	seed.Ping()
+func (s Server) FindNode(request *FindRequest, reply *FindNodeResponse) error {
+	node := request.Target
+	log.Println("FindNode request recieved", node, s)
+
+	shortlist := s.node.ClosestNodes(node.Id, K)
+	reply.Triplets = append(reply.Triplets, shortlist...)
+
+	s.node.Update(request.Sender)
+
+	return nil
 }
 
 func NewServer(ip string, port string) Server {

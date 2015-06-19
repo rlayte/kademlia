@@ -112,8 +112,21 @@ func TestNodeUpdate(t *testing.T) {
 func TestClosestNodes(t *testing.T) {
 	n := NewNode("0.0.0.0", "3000")
 	target := NewNodeId("test")
+	bucket := n.ClosestBucket(target)
 
-	closest := n.ClosestNodes(target)
+	for i := 0; i < K; i++ {
+		bucket.PushBack(NewTriplet("0.0.0.0", "300"+string(i+1)))
+	}
 
-	t.Error("Closest nodes", closest)
+	closest := n.ClosestNodes(target, A)
+
+	if len(closest) != A {
+		t.Error("Should return closest Alpha nodes", A, len(closest))
+	}
+
+	closest = n.ClosestNodes(n.Id, A)
+
+	if len(closest) != A {
+		t.Error("Nodes should be found from surrounding buckets if missing", len(closest))
+	}
 }
