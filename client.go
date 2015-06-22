@@ -6,13 +6,13 @@ import (
 )
 
 type Client struct {
-	t *Triplet
+	c *Contact
 	*rpc.Client
 }
 
-func HTTPClient(t *Triplet) (c *rpc.Client) {
-	log.Println("Connecting to:", t.Address())
-	c, err := rpc.DialHTTP("tcp", t.Address())
+func HTTPClient(c *Contact) (client *rpc.Client) {
+	log.Println("Connecting to:", c.Address())
+	client, err := rpc.DialHTTP("tcp", c.Address())
 
 	if err != nil {
 		log.Fatal(err)
@@ -21,6 +21,6 @@ func HTTPClient(t *Triplet) (c *rpc.Client) {
 	return
 }
 
-func NewClient(sender *Triplet, contact *Triplet) Client {
+func NewClient(sender *Contact, contact *Contact) Client {
 	return Client{sender, HTTPClient(contact)}
 }

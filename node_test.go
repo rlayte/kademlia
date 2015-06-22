@@ -76,10 +76,10 @@ func TestJoin(t *testing.T) {
 	n1 := NewNode("0.0.0.0", "3000")
 	n2 := NewNode("0.0.0.0", "3001")
 
-	n1.Join(*n2.Triplet)
+	n1.Join(*n2.Contact)
 
 	bucket := n1.buckets[idLength-1]
-	tail := bucket.Back().Value.(Triplet)
+	tail := bucket.Back().Value.(Contact)
 
 	if tail.Id != n1.Id {
 		t.Error("Node's should add themselves to the final bucket")
@@ -87,7 +87,7 @@ func TestJoin(t *testing.T) {
 
 	index := n1.BucketIndex(n2.Id)
 	bucket = n1.buckets[index]
-	tail = bucket.Back().Value.(Triplet)
+	tail = bucket.Back().Value.(Contact)
 
 	if tail.Id != n2.Id {
 		t.Error("The seed node should be added to the correct bucket", n1.buckets[index])
@@ -98,11 +98,11 @@ func TestNodeUpdate(t *testing.T) {
 	n1 := NewNode("0.0.0.0", "3000")
 	n2 := NewNode("0.0.0.0", "3001")
 
-	n1.Update(n2.Triplet)
+	n1.Update(n2.Contact)
 
 	index := n1.BucketIndex(n2.Id)
 	bucket := n1.buckets[index]
-	tail := bucket.Back().Value.(Triplet)
+	tail := bucket.Back().Value.(Contact)
 
 	if tail.Id != n2.Id {
 		t.Error("Update should added new nodes to the correct bucket")
@@ -115,7 +115,7 @@ func TestClosestNodes(t *testing.T) {
 	bucket := n.ClosestBucket(target)
 
 	for i := 0; i < K; i++ {
-		bucket.PushBack(NewTriplet("0.0.0.0", "300"+string(i+1)))
+		bucket.PushBack(NewContact(n, "0.0.0.0", "300"+string(i+1)))
 	}
 
 	closest := n.ClosestNodes(target, A)

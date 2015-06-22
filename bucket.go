@@ -10,27 +10,27 @@ type Bucket struct {
 	*list.List
 }
 
-func (b *Bucket) Update(t Contact) {
-	if element, exists := b.Contains(t); exists {
+func (b *Bucket) Update(c Contactable) {
+	if element, exists := b.Contains(c); exists {
 		b.MoveToBack(element)
 	} else if b.Len() < K {
-		b.PushBack(t)
+		b.PushBack(c)
 	} else {
 		head := b.Front()
 		_, err := b.Head().Ping()
 
 		if err != nil {
 			b.Remove(head)
-			b.PushBack(t)
+			b.PushBack(c)
 		} else {
 			b.MoveToBack(head)
 		}
 	}
 }
 
-func (b Bucket) Contains(t Contact) (*list.Element, bool) {
+func (b Bucket) Contains(c Contactable) (*list.Element, bool) {
 	for e := b.Front(); e != nil; e = e.Next() {
-		if e.Value == t {
+		if e.Value == c {
 			return e, true
 		}
 	}
@@ -38,21 +38,31 @@ func (b Bucket) Contains(t Contact) (*list.Element, bool) {
 	return nil, false
 }
 
-func (b Bucket) Get(index int) (Triplet, bool) {
+func (b Bucket) Slice() []Contact {
+	s := []Contact{}
+
+	for e := b.Front(); e != nil; e = e.Next() {
+		s = append(s, e.Value.(Contact))
+	}
+
+	return s
+}
+
+func (b Bucket) Get(index int) (Contact, bool) {
 	count := 0
 
 	for e := b.Front(); e != nil; e = e.Next() {
 		if count == index {
-			return e.Value.(Triplet), true
+			return e.Value.(Contact), true
 		}
 
 		count++
 	}
 
-	return Triplet{}, false
+	return Contact{}, false
 }
 
-func (b Bucket) RandomTriplets(count int) (selected []Triplet) {
+func (b Bucket) RandomContacts(count int) (selected []Contact) {
 	indexes := make([]bool, b.Len())
 	selectedIndexes := []int{}
 
@@ -72,12 +82,12 @@ func (b Bucket) RandomTriplets(count int) (selected []Triplet) {
 	return
 }
 
-func (b Bucket) Head() Triplet {
-	return b.Front().Value.(Triplet)
+func (b Bucket) Head() Contact {
+	return b.Front().Value.(Contact)
 }
 
-func (b Bucket) Tail() Triplet {
-	return b.Back().Value.(Triplet)
+func (b Bucket) Tail() Contact {
+	return b.Back().Value.(Contact)
 }
 
 func NewBucket() Bucket {

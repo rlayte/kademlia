@@ -41,7 +41,7 @@ func Xor(current NodeId, target NodeId) (diff NodeId) {
 }
 
 type Node struct {
-	*Triplet
+	*Contact
 	buckets [idLength]Bucket
 }
 
@@ -65,20 +65,20 @@ func (node Node) BucketIndex(id NodeId) int {
 	return idLength - 1
 }
 
-func (node *Node) AddToBucket(triplet Triplet) bool {
-	bucket := node.ClosestBucket(triplet.Id)
-	bucket.Update(triplet)
+func (node *Node) AddToBucket(contact Contact) bool {
+	bucket := node.ClosestBucket(contact.Id)
+	bucket.Update(contact)
 
 	return true
 }
 
-func (node *Node) Join(seed Triplet) {
-	node.AddToBucket(*node.Triplet)
+func (node *Node) Join(seed Contact) {
+	node.AddToBucket(*node.Contact)
 	node.AddToBucket(seed)
 }
 
-func (node *Node) Update(t *Triplet) {
-	node.AddToBucket(*t)
+func (node *Node) Update(contact *Contact) {
+	node.AddToBucket(*contact)
 }
 
 func (node Node) ClosestBucket(target NodeId) Bucket {
@@ -106,9 +106,9 @@ func (node Node) PrevBucket(target NodeId) Bucket {
 	}
 }
 
-func (node *Node) ClosestNodes(target NodeId, quantity int) []Triplet {
+func (node *Node) ClosestNodes(target NodeId, quantity int) []Contact {
 	bucket := node.ClosestBucket(target)
-	selected := []Triplet{}
+	selected := []Contact{}
 
 	for len(selected) < quantity {
 		count := 0
@@ -123,14 +123,14 @@ func (node *Node) ClosestNodes(target NodeId, quantity int) []Triplet {
 			count++
 		}
 
-		selected = append(selected, bucket.RandomTriplets(A-len(selected))...)
+		selected = append(selected, bucket.RandomContacts(A-len(selected))...)
 	}
 
 	return selected
 }
 
 func (node *Node) String() string {
-	return node.Triplet.String()
+	return node.Contact.String()
 }
 
 func NewNode(ip string, port string) (node Node) {
@@ -140,9 +140,9 @@ func NewNode(ip string, port string) (node Node) {
 		buckets[i] = NewBucket()
 	}
 
-	triplet := Triplet{Ip: ip, Port: port}
-	triplet.Id = NewNodeId(triplet.Address())
-	node = Node{&triplet, buckets}
+	contact := Contact{Ip: ip, Port: port}
+	contact.Id = NewNodeId(contact.Address())
+	node = Node{&contact, buckets}
 
 	return
 }

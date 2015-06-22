@@ -5,42 +5,42 @@ import (
 	"log"
 )
 
-type Triplet struct {
+type Contact struct {
 	Id     NodeId
 	Ip     string
 	Port   string
 	client Client
 }
 
-type Contact interface {
+type Contactable interface {
 	Ping() (PingResponse, error)
 }
 
-func (t Triplet) Address() string {
-	return fmt.Sprintf("%s:%s", t.Ip, t.Port)
+func (c Contact) Address() string {
+	return fmt.Sprintf("%s:%s", c.Ip, c.Port)
 }
 
-func (t Triplet) String() string {
-	return fmt.Sprintf("%v --- %s", t.Id, t.Address())
+func (c Contact) String() string {
+	return fmt.Sprintf("%v --- %s", c.Id, c.Address())
 }
 
-func (t Triplet) Ping() (PingResponse, error) {
-	request := Request{t.client.t}
+func (c Contact) Ping() (PingResponse, error) {
+	request := Request{c.client.c}
 	reply := PingResponse{}
-	err := t.client.Call("Server.Ping", &request, &reply)
+	err := c.client.Call("Server.Ping", &request, &reply)
 
 	log.Println("Pong", reply, err)
 	return reply, err
 }
 
-func NewTriplet(node Node, ip string, port string) Triplet {
-	t := Triplet{
+func NewContact(node Node, ip string, port string) Contact {
+	c := Contact{
 		Id:   NewNodeId(ip + ":" + port),
 		Ip:   ip,
 		Port: port,
 	}
 
-	t.client = NewClient(node.Triplet, &t)
+	c.client = NewClient(node.Contact, &c)
 
-	return t
+	return c
 }

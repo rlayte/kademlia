@@ -7,63 +7,63 @@ type Server struct {
 }
 
 type Request struct {
-	Sender *Triplet
+	Sender *Contact
 }
 
 type FindRequest struct {
 	*Request
-	Target *Triplet
+	Target *Contact
 }
 
 type PingResponse struct {
-	*Triplet
+	*Contact
 }
 
 type FindNodeResponse struct {
-	Triplets []Triplet
+	Contacts []Contact
 }
 
-func addToShortlist(shortlist chan Triplet, items []Triplet) {
-	for _, triplet := range items {
-		shortlist <- triplet
+func addToShortlist(shortlist chan Contact, items []Contact) {
+	for _, contact := range items {
+		shortlist <- contact
 	}
 }
 
-func requestClosest(t Triplet, method string) []Triplet {
+func requestClosest(contact Contact, method string) []Contact {
 	reply := FindNodeResponse{}
-	t.client.Call(method, &t, reply)
+	contact.client.Call(method, &contact, reply)
 
-	return reply.Triplets
+	return reply.Contacts
 }
 
-func iterateShortlist(shortlist chan Triplet, target NodeId, method string) Triplet {
-	var closestNode Triplet
+func iterateShortlist(shortlist chan Contact, target NodeId, method string) Contact {
+	var closestNode Contact
 	var closestDistance NodeId
-	done := make(chan Triplet, 1)
+	done := make(chan Contact, 1)
 	contacted := map[NodeId]bool{}
 
-	for triplet := range shortlist {
+	for contact := range shortlist {
 		if len(contacted) > K {
 			close(shortlist)
 			done <- closestNode
 		}
 
-		if distance := Xor(target, triplet.Id); distance.LessThan(closestDistance) {
+		if distance := Xor(target, contact.Id); distance.LessThan(closestDistance) {
 			closestDistance = distance
-			closestNode = triplet
+			closestNode = contact
 		}
 
-		if _, ok := contacted[triplet.Id]; !ok {
-			contacted[triplet.Id] = true
-			addToShortlist(shortlist, requestClosest(triplet, method))
+		if _, ok := contacted[contact.Id]; !ok {
+			contacted[contact.Id] = true
+			addToShortlist(shortlist, requestClosest(contact, method))
 		}
 	}
 
 	return <-done
 }
 
-func nodeLookup(origin Node, target NodeId, method string) Triplet {
-	shortlist := make(chan Triplet, A)
+func nodeLookup(origin Node, target NodeId, method string) Contact {
+	shortlist := make(chan Contact, A)
 	addToShortlist(shortlist, origin.ClosestNodes(target, A))
 	return iterateShortlist(shortlist, target, method)
 }
@@ -71,7 +71,7 @@ func nodeLookup(origin Node, target NodeId, method string) Triplet {
 func (s Server) Ping(request *Request, reply *PingResponse) error {
 	log.Println("Ping recieved:", request.Sender)
 
-	reply.Triplet = &Triplet{
+	reply.Contact = &Contact{
 		Id:   s.node.Id,
 		Ip:   s.node.Ip,
 		Port: s.node.Port,
@@ -87,7 +87,7 @@ func (s Server) FindNode(request *FindRequest, reply *FindNodeResponse) error {
 	log.Println("FindNode request recieved", node, s)
 
 	shortlist := s.node.ClosestNodes(node.Id, K)
-	reply.Triplets = append(reply.Triplets, shortlist...)
+	reply.Contacts = append(reply.Contacts, shortlist...)
 
 	s.node.Update(request.Sender)
 

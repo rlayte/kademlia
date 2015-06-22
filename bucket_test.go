@@ -11,13 +11,13 @@ func (c MockClient) Call(method string, args interface{}, reply interface{}) err
 	return nil
 }
 
-func mockTriplet(id string) Triplet {
-	return Triplet{Id: NewNodeId(id), client: MockClient{}}
+func mockContact(id string) Contact {
+	return Contact{Id: NewNodeId(id)}
 }
 
 func TestUpdate(t *testing.T) {
 	b := NewBucket()
-	t1 := mockTriplet("test")
+	t1 := mockContact("test")
 
 	b.Update(t1)
 
@@ -26,10 +26,10 @@ func TestUpdate(t *testing.T) {
 	}
 
 	for i := 1; i < K; i++ {
-		b.Update(Triplet{Id: NewNodeId("test" + string(i))})
+		b.Update(Contact{Id: NewNodeId("test" + string(i))})
 	}
 
-	t2 := Triplet{Id: NewNodeId("final test")}
+	t2 := Contact{Id: NewNodeId("final test")}
 	b.Update(t2)
 
 	if b.Tail().Id == t2.Id {
@@ -47,27 +47,27 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-func TestRandomTriplets(t *testing.T) {
+func TestRandomContacts(t *testing.T) {
 	b := NewBucket()
 
-	t1 := mockTriplet("test")
+	t1 := mockContact("test")
 	b.Update(t1)
 
-	random := b.RandomTriplets(3)
+	random := b.RandomContacts(3)
 
 	if len(random) != 1 {
 		t.Error("Should only return the nodes in the bucket")
 	}
 
 	if random[0] != t1 {
-		t.Error("Should return the correct triplets")
+		t.Error("Should return the correct contacts")
 	}
 
 	for i := 1; i < K; i++ {
-		b.Update(mockTriplet("test" + string(i)))
+		b.Update(mockContact("test" + string(i)))
 	}
 
-	random = b.RandomTriplets(3)
+	random = b.RandomContacts(3)
 
 	if len(random) != 3 {
 		t.Error("Should return specified count", 3, len(random))
