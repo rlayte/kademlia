@@ -81,7 +81,6 @@ func (node Node) BucketIndex(id NodeId) int {
 func makeShortlist(origin Node, target *Contact) chan Contact {
 	shortlist := make(chan Contact, A)
 	contacts := origin.ClosestNodes(target.Id, A)
-	log.Println("Closest nodes", contacts)
 
 	for _, contact := range contacts {
 		shortlist <- contact
@@ -90,25 +89,25 @@ func makeShortlist(origin Node, target *Contact) chan Contact {
 	return shortlist
 }
 
-func iterateShortlist(shortlist chan Contact, target *Contact, method string) Contact {
-	var closestNode Contact
-	var closestDistance NodeId
-	done := make(chan Contact, 1)
-	contacted := map[NodeId]bool{}
+func iterateShortlist(shortlist chan Contact, target *Contact, method string) map[NodeId]Contact {
+	var closest NodeId
+	contacted := map[NodeId]Contact{}
 
+	log.Println("Iterating...")
+
+	// This should be randomised
 	for contact := range shortlist {
+		log.Println("Looping", target, contact)
 		if len(contacted) > K {
 			close(shortlist)
-			done <- closestNode
 		}
 
-		if distance := Xor(target.Id, contact.Id); distance.LessThan(closestDistance) {
-			closestDistance = distance
-			closestNode = contact
+		if distance := Xor(target.Id, contact.Id); distance.LessThan(closest) {
+			closest = distance
 		}
 
 		if _, ok := contacted[contact.Id]; !ok {
-			contacted[contact.Id] = true
+			contacted[contact.Id] = contact
 			response, _ := contact.FindNode(target)
 
 			for _, contact := range response.Contacts {
@@ -117,16 +116,27 @@ func iterateShortlist(shortlist chan Contact, target *Contact, method string) Co
 		}
 	}
 
-	return <-done
+	log.Println("Finished loop")
+
+	return contacted
 }
 
-func nodeLookup(origin Node, target *Contact, method string) Contact {
+func nodeLookup(origin Node, target *Contact, method string) map[NodeId]Contact {
 	shortlist := makeShortlist(origin, target)
 	return iterateShortlist(shortlist, target, method)
 }
 
-func (node *Node) FindNode(contact *Contact) Contact {
-	log.Println("Finding node", contact)
+func (node *Node) FindNode(contact *Contact) map[NodeId]Contact {
+	log.Println("Starting find nodes", node.Contact, contact)
+
+	contacts := nodeLookup(*node, contact, "FindNode")
+
+	log.Println("Found contacts", node.Contact, contacts)
+
+	for _, contact := range contacts {
+		node.AddToBucket(contact)
+	}
+
 	return nodeLookup(*node, contact, "FindNode")
 }
 

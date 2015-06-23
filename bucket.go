@@ -1,9 +1,6 @@
 package kademlia
 
-import (
-	"container/list"
-	"log"
-)
+import "container/list"
 
 const (
 	K int = 20
@@ -15,13 +12,10 @@ type Bucket struct {
 
 func (b *Bucket) Update(c Contact) {
 	if element, exists := b.Contains(c); exists {
-		log.Println("Contact exists", c)
 		b.MoveToBack(element)
 	} else if b.Len() < K {
-		log.Println("Contact doesn't exist. Less than K", c, b.Len())
 		b.PushBack(c)
 	} else {
-		log.Println("Contact doesn't exist. More than K", c, b.Len())
 		head := b.Front()
 		_, err := b.Head().Ping()
 
