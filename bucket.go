@@ -1,6 +1,9 @@
 package kademlia
 
-import "container/list"
+import (
+	"container/list"
+	"log"
+)
 
 const (
 	K int = 20
@@ -10,12 +13,15 @@ type Bucket struct {
 	*list.List
 }
 
-func (b *Bucket) Update(c Contactable) {
+func (b *Bucket) Update(c Contact) {
 	if element, exists := b.Contains(c); exists {
+		log.Println("Contact exists", c)
 		b.MoveToBack(element)
 	} else if b.Len() < K {
+		log.Println("Contact doesn't exist. Less than K", c, b.Len())
 		b.PushBack(c)
 	} else {
+		log.Println("Contact doesn't exist. More than K", c, b.Len())
 		head := b.Front()
 		_, err := b.Head().Ping()
 
@@ -28,9 +34,9 @@ func (b *Bucket) Update(c Contactable) {
 	}
 }
 
-func (b Bucket) Contains(c Contactable) (*list.Element, bool) {
+func (b Bucket) Contains(c Contact) (*list.Element, bool) {
 	for e := b.Front(); e != nil; e = e.Next() {
-		if e.Value == c {
+		if e.Value.(Contact).Id.Equals(c.Id) {
 			return e, true
 		}
 	}
@@ -60,26 +66,6 @@ func (b Bucket) Get(index int) (Contact, bool) {
 	}
 
 	return Contact{}, false
-}
-
-func (b Bucket) RandomContacts(count int) (selected []Contact) {
-	indexes := make([]bool, b.Len())
-	selectedIndexes := []int{}
-
-	for index, _ := range indexes {
-		selectedIndexes = append(selectedIndexes, index)
-
-		if len(selectedIndexes) >= count {
-			break
-		}
-	}
-
-	for _, index := range selectedIndexes {
-		node, _ := b.Get(index)
-		selected = append(selected, node)
-	}
-
-	return
 }
 
 func (b Bucket) Head() Contact {

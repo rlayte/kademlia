@@ -18,13 +18,14 @@ func Get(key string) (interface{}, error) {
 func Join(s Server, ip string, port string) {
 	log.Println("Joining network")
 	seed := NewContact(s.node, ip, port)
-	s.node.Join(seed)
+	go s.node.Join(seed)
 }
 
 func Nodes(s Server) []Contact {
 	nodes := []Contact{}
 
-	for _, bucket := range s.node.buckets {
+	for i, bucket := range s.node.buckets {
+		log.Println("Bucket", bucket.Slice(), i, bucket.Len())
 		nodes = append(nodes, bucket.Slice()...)
 	}
 

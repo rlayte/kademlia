@@ -1,9 +1,6 @@
 package kademlia
 
-import (
-	"fmt"
-	"log"
-)
+import "fmt"
 
 type Contact struct {
 	Id     NodeId
@@ -14,6 +11,7 @@ type Contact struct {
 
 type Contactable interface {
 	Ping() (PingResponse, error)
+	FindNode(contact *Contact) (FindNodeResponse, error)
 }
 
 func (c Contact) Address() string {
@@ -27,9 +25,16 @@ func (c Contact) String() string {
 func (c Contact) Ping() (PingResponse, error) {
 	request := Request{c.client.c}
 	reply := PingResponse{}
-	err := c.client.Call("Server.Ping", &request, &reply)
+	err := c.client.Request("Server.Ping", &request, &reply)
 
-	log.Println("Pong", reply, err)
+	return reply, err
+}
+
+func (c Contact) FindNode(contact *Contact) (FindNodeResponse, error) {
+	request := FindRequest{Sender: c.client.c, Target: contact}
+	reply := FindNodeResponse{}
+
+	err := c.client.Request("Server.FindNode", &request, &reply)
 	return reply, err
 }
 

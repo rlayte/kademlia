@@ -3,6 +3,9 @@ package kademlia
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"log"
+	"math"
+	"math/rand"
 	"strconv"
 	"strings"
 )
@@ -26,6 +29,16 @@ func (id NodeId) LessThan(other NodeId) bool {
 	}
 
 	return false
+}
+
+func (id NodeId) Equals(other NodeId) bool {
+	for i, b := range id {
+		if b != other[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func NewNodeId(address string) (id NodeId) {
@@ -65,6 +78,58 @@ func (node Node) BucketIndex(id NodeId) int {
 	return idLength - 1
 }
 
+func makeShortlist(origin Node, target *Contact) chan Contact {
+	shortlist := make(chan Contact, A)
+	contacts := origin.ClosestNodes(target.Id, A)
+	log.Println("Closest nodes", contacts)
+
+	for _, contact := range contacts {
+		shortlist <- contact
+	}
+
+	return shortlist
+}
+
+func iterateShortlist(shortlist chan Contact, target *Contact, method string) Contact {
+	var closestNode Contact
+	var closestDistance NodeId
+	done := make(chan Contact, 1)
+	contacted := map[NodeId]bool{}
+
+	for contact := range shortlist {
+		if len(contacted) > K {
+			close(shortlist)
+			done <- closestNode
+		}
+
+		if distance := Xor(target.Id, contact.Id); distance.LessThan(closestDistance) {
+			closestDistance = distance
+			closestNode = contact
+		}
+
+		if _, ok := contacted[contact.Id]; !ok {
+			contacted[contact.Id] = true
+			response, _ := contact.FindNode(target)
+
+			for _, contact := range response.Contacts {
+				shortlist <- contact
+			}
+		}
+	}
+
+	return <-done
+}
+
+func nodeLookup(origin Node, target *Contact, method string) Contact {
+	shortlist := makeShortlist(origin, target)
+	return iterateShortlist(shortlist, target, method)
+}
+
+func (node *Node) FindNode(contact *Contact) Contact {
+	log.Println("Finding node", contact)
+	return nodeLookup(*node, contact, "FindNode")
+}
+
 func (node *Node) AddToBucket(contact Contact) bool {
 	bucket := node.ClosestBucket(contact.Id)
 	bucket.Update(contact)
@@ -73,8 +138,8 @@ func (node *Node) AddToBucket(contact Contact) bool {
 }
 
 func (node *Node) Join(seed Contact) {
-	node.AddToBucket(*node.Contact)
 	node.AddToBucket(seed)
+	node.FindNode(node.Contact)
 }
 
 func (node *Node) Update(contact *Contact) {
@@ -86,47 +151,53 @@ func (node Node) ClosestBucket(target NodeId) Bucket {
 	return node.buckets[index]
 }
 
-func (node Node) NextBucket(target NodeId) Bucket {
-	index := node.BucketIndex(target)
-
+func (node Node) NextBucket(index int) Bucket {
 	if index >= idLength-1 {
-		return node.buckets[0]
+		return node.buckets[index-(idLength-1)]
 	} else {
-		return node.buckets[index+1]
+		return node.buckets[index]
 	}
 }
 
-func (node Node) PrevBucket(target NodeId) Bucket {
+func (node Node) PrevBucket(index int) Bucket {
+	if index < 0 {
+		return node.buckets[(idLength-1)+index]
+	} else {
+		return node.buckets[index]
+	}
+}
+
+func (node *Node) ClosestNodes(target NodeId, quantity int) (contacts []Contact) {
 	index := node.BucketIndex(target)
-
-	if index == 0 {
-		return node.buckets[idLength-1]
-	} else {
-		return node.buckets[index-1]
-	}
-}
-
-func (node *Node) ClosestNodes(target NodeId, quantity int) []Contact {
 	bucket := node.ClosestBucket(target)
-	selected := []Contact{}
+	items := bucket.Slice()
+	chosen := map[int]bool{}
+	count := 0
 
-	for len(selected) < quantity {
-		count := 0
-
-		for bucket.Len() < A {
-			if count > idLength/2 {
-				break
-			}
-
-			bucket.PushBackList(node.NextBucket(target).List)
-			bucket.PushBackList(node.PrevBucket(target).List)
-			count++
+	for len(items) < quantity {
+		if count > idLength/2 {
+			break
 		}
 
-		selected = append(selected, bucket.RandomContacts(A-len(selected))...)
+		next := node.NextBucket(index + count)
+		prev := node.PrevBucket(index - count)
+		items = append(items, next.Slice()...)
+		items = append(items, prev.Slice()...)
+		count++
 	}
 
-	return selected
+	l := int(math.Min(float64(quantity), float64(len(items))))
+
+	for len(contacts) < l {
+		index := rand.Intn(len(items))
+
+		if taken := chosen[index]; !taken {
+			contacts = append(contacts, items[index])
+			chosen[index] = true
+		}
+	}
+
+	return
 }
 
 func (node *Node) String() string {
@@ -140,9 +211,12 @@ func NewNode(ip string, port string) (node Node) {
 		buckets[i] = NewBucket()
 	}
 
-	contact := Contact{Ip: ip, Port: port}
-	contact.Id = NewNodeId(contact.Address())
-	node = Node{&contact, buckets}
+	node = Node{buckets: buckets}
+	node.Contact = &Contact{
+		Id:   NewNodeId(ip + ":" + port),
+		Ip:   ip,
+		Port: port,
+	}
 
 	return
 }

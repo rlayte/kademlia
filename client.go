@@ -6,8 +6,8 @@ import (
 )
 
 type Client struct {
-	c *Contact
-	*rpc.Client
+	c    *Contact
+	http *rpc.Client
 }
 
 func HTTPClient(c *Contact) (client *rpc.Client) {
@@ -19,6 +19,14 @@ func HTTPClient(c *Contact) (client *rpc.Client) {
 	}
 
 	return
+}
+
+func (c Client) Request(method string, args interface{}, reply interface{}) error {
+	if c.http == nil {
+		return nil
+	} else {
+		return c.http.Call(method, args, reply)
+	}
 }
 
 func NewClient(sender *Contact, contact *Contact) Client {
